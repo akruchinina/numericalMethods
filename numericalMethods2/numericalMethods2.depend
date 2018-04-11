@@ -1,0 +1,7 @@
+# depslib dependency file v1.0
+1523429608 source:/home/akruchinina/UNIVER/NM/codeBlocksProjects/numericalMethods2/main.cpp
+	<cmath>
+	<iostream>
+	<cstdio>
+	<vector>
+
