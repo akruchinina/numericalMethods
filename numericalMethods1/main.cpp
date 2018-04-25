@@ -12,10 +12,10 @@ double h = M_PI / 20;
 double tau = 0.03125;
 
 //точное решение
-double exactU [500][500];
+double **exactU;
 
 //приближенное решение
-double u [500][500];
+double **u;
 
 //граница по пространству
 double xBorder = M_PI;
@@ -27,15 +27,14 @@ int N = xBorder / h;  //i
 int M = tBorder / tau; //j
 
 //для метода прогонки
-double td[500][500];
-double rightPart[500];
-double tdmaResult[500];
-
+double **td;
+double *rightPart;
+double *tdmaResult;
 
 /**
  * Печатает матрицу координат
  */
-void printCoords (double a[][500])
+void printCoords (double **a)
 {
     for (int i = 0; i <= N; i++)
     {
@@ -121,13 +120,13 @@ void initU()
  */
 void tdMatrixAlgoritm()
 {
-    //double td[500][500];
-    //double rightPart[500];
-    //double tdmaResult[500];
+    //double td
+    //double rightPart;
+    //double tdmaResult;
 
     int rightPartN = N - 2;
-    double alpha[500];
-    double beta[500];
+    double *alpha = new double[rightPartN + 1];
+    double *beta = new double[rightPartN + 2];
 
     //Инициализация
     alpha[1] = -td[1][0] / td[0][0];
@@ -184,20 +183,19 @@ void calcTimeLayer(int j, vector<double>& tdmaVector)
 
         double x = (i + 1) * h;
         double g = sin(x) + (2 * t) / (double)(t * t + 1);
-        rightPart[i] = - h * h * (tau * g + u[i + 1][j - 1]);
+        rightPart[i] = -h * h * (tau * g + u[i + 1][j - 1]);
     }
 
     rightPart[0] -= u[0][j] * a;
-    rightPart[N - 2] -= u[N][j] * a;
+    rightPart[N - 2] -= u[N][j] * c;
 
     tdMatrixAlgoritm();
 
     tdmaVector.push_back(u[0][j]);
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < N - 1; i++)
     {
        tdmaVector.push_back(tdmaResult[i]);
     }
-    tdmaVector.push_back(u[N][j]);
 }
 
 /**
@@ -206,9 +204,9 @@ void calcTimeLayer(int j, vector<double>& tdmaVector)
 void calcKNTimeLayer(int j, vector<double>& tdmaVector)
 {
     //Коэффициенты т-диагональной матрицы
-    double a = tau;
-    double b = -2 * (h * h + tau);
-    double c = tau;
+    double a = - tau;
+    double b = 2 * (h * h + tau);
+    double c = - tau;
 
     double t = (j - 1) * tau;
 
@@ -227,8 +225,8 @@ void calcKNTimeLayer(int j, vector<double>& tdmaVector)
 
         double x = (i + 1) * h;
         double g = sin(x) + (2 * t) / (double)(t * t + 1);
-        double explicitPart = tau / (2 * h * h) * u[i][j - 1] + (h * h - tau)/(h * h) * u[i + 1][j - 1] + tau / (2 * h * h) * u[i + 2][j - 1];
-        rightPart[i] = - 2 *h * h * (tau * g + explicitPart);
+        double explicitPart = tau * u[i][j - 1] + 2 * (h * h - tau) * u[i + 1][j - 1] + tau * u[i + 2][j - 1];
+        rightPart[i] = 2 * h * h * tau * g + explicitPart;
     }
 
     rightPart[0] -= u[0][j] * a;
@@ -237,11 +235,10 @@ void calcKNTimeLayer(int j, vector<double>& tdmaVector)
     tdMatrixAlgoritm();
 
     tdmaVector.push_back(u[0][j]);
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < N - 1; i++)
     {
        tdmaVector.push_back(tdmaResult[i]);
     }
-    tdmaVector.push_back(u[N][j]);
 }
 
 /**
@@ -297,13 +294,28 @@ void calcKrankNikolsonMethodResult()
     }
 }
 
+void init()
+{
+    exactU = new double*[N + 1];
+    u = new double*[N + 1];
+    td = new double*[N + 1];
+    rightPart = new double[N + 1];
+    tdmaResult = new double[N + 1];
+    for (int i = 0; i <= N; i++)
+    {
+        exactU[i] = new double[M + 1];
+        u[i] = new double[M + 1];
+        td[i] = new double[M + 1];
+    }
+}
 int main()
 {
+    init();
     //freopen( "file.out", "wt", stdout);
-    
+
     //вызываем нужный метод из 3-х: calcExplicitMethodResult, calcImplicitMethodResult, calcKrankNikolsonMethodResult
     calcKrankNikolsonMethodResult();
-    
+
     //выводим ошибку
     double error = calcError();
     cout << error;

@@ -13,11 +13,10 @@ double hY = M_PI / 5;
 double tau = 0.25;
 
 //точное решение
-double exactU [500][500][500];
+double ***exactU;
 
 //приближенное решение
-double u [500][500][500];
-
+double ***u;
 
 //граница по пространству
 double xBorder = 2 * M_PI;
@@ -32,15 +31,15 @@ int M = yBorder / hY;  //j
 int K = tBorder / tau; //k
 
 //для метода прогонки
-double td[500][500];
-double rightPart[500];
-double tdmaResult[500];
+double **td;
+double *rightPart;
+double *tdmaResult;
 
 
 /**
  * Печатает матрицу координат
  */
-void printCoords (double a[][500][500])
+void printCoords (double ***a)
 {
     for (int k = 0; k < K; k++)
     {
@@ -80,7 +79,6 @@ void calcExpectedResult()
 double calcError()
 {
     double maxValue = 0;
-
     for (int k = 0; k <= K; k++)
     {
         for (int j = 0; j <= M; j++)
@@ -111,7 +109,7 @@ void initU()
         }
 
     //заполняем граничные значения по x
-    for (int k = 0; k <= K; k++)
+    for (int k = 1; k <= K; k++)
     {
         double t = k * tau;
         for (int i = 0; i <= N; i++)
@@ -124,7 +122,7 @@ void initU()
     }
 
     //заполняем граничные значения по y
-    for (int k = 0; k <= K; k++)
+    for (int k = 1; k <= K; k++)
     {
         double t = k * tau;
         for (int j = 0; j <= M; j++)
@@ -142,25 +140,24 @@ void initU()
  */
 void tdMatrixAlgoritm(int rightPartN)
 {
-    //double td[500][500];
-    //double rightPart[500];
-    //double tdmaResult[500];
+    //double td;
+    //double rightPart;
+    //double tdmaResult;
 
-    double alpha[500];
-    double beta[500];
+    rightPartN -= 2;
+    double *alpha = new double[rightPartN + 1];
+    double *beta = new double[rightPartN + 2];
 
     //Инициализация
     alpha[1] = -td[1][0] / td[0][0];
     beta[1] = rightPart[0] / td[0][0];
 
-    rightPartN--;
     //Прямой ход
     for (int i = 1; i <= rightPartN; i++)
     {
         double a = td[i - 1][i];
         double c = td[i][i];
         double f = rightPart[i];
-
         if (i < rightPartN)
         {
             double b = td[i + 1][i];
@@ -190,12 +187,12 @@ void calcX(int i, int k)
     {
         if (j > 0)
         {
-            td[j - 1][j] = a;
+            td[j][j - 1] = a;
         }
         td[j][j] = b;
         if (j < N - 2)
         {
-            td[j + 1][j] = c;
+            td[j][j + 1] = c;
         }
 
         double x = i * hX;
@@ -225,21 +222,21 @@ void calcY(int j, int k)
     {
         if (i > 0)
         {
-            td[i - 1][i] = a;
+            td[i][i - 1] = a;
         }
         td[i][i] = b;
         if (i < N - 2)
         {
-            td[i + 1][i] = c;
+            td[i][i + 1] = c;
         }
 
         double x = (i + 1) * hX;
         double y = j * hY;
-        double t = (k - 0.5) * tau;
+        double t = k * tau;
         double g = sin(x + y) + (2 * t) / (double)(t * t + 1);
 
         double s = tau / (hX * hX);
-        rightPart[i] = s / 2 * u[i][j][k - 1] + (1 - s) * u[i + 1][j][k - 1] + s / 2 * u[i + 2][j][k - 1] + tau / 2 * g;
+        rightPart[i] = s / 2 * u[i][j][k] + (1 - s) * u[i + 1][j][k] + s / 2 * u[i + 2][j][k] + tau / 2 * g;
     }
     rightPart[0] -= u[0][j][k] * a;
     rightPart[N - 2] -= u[N][j][k] * c;
@@ -254,13 +251,12 @@ void calcPeacemanRachfordResult()
     initU();
     for (int k = 1; k <= K; k++)
     {
-
         for (int i = 1; i < N; i++)
         {
             calcX(i, k);
             for (int j = 1; j < M; j++)
             {
-                u[i][j][k] = tdmaResult[j];
+                u[i][j][k] = tdmaResult[j - 1];
             }
         }
 
@@ -269,24 +265,51 @@ void calcPeacemanRachfordResult()
             calcY(j, k);
             for (int i = 1; i < N; i++)
             {
-                u[i][j][k] = tdmaResult[i];
+                u[i][j][k] = tdmaResult[i - 1];
             }
         }
     }
 }
 
+void init()
+{
+    exactU = new double**[N + 1];
+    u = new double**[N + 1];
+    for (int i = 0; i <= N; i++)
+    {
+        exactU[i] = new double*[M + 1];
+        u[i] = new double*[M + 1];
+        for (int j = 0; j <= M; j++)
+        {
+            exactU[i][j] = new double[K + 1];
+            u[i][j] = new double[K + 1];
+        }
+    }
+
+    int tdSize = max(N, M);
+    td = new double*[tdSize + 1];
+    rightPart = new double[tdSize + 1];
+    tdmaResult = new double[tdSize + 1];
+
+    for (int i = 0; i<= tdSize; i++)
+    {
+        td[i] = new double[tdSize + 1];
+    }
+}
+
 int main()
 {
-    freopen( "file.out", "wt", stdout);
+    init();
+    //freopen( "file.out", "wt", stdout);
 
     //вызываем методы
     calcExpectedResult();
     calcPeacemanRachfordResult();
 
-    cout << "expected" << endl;
-    printCoords(exactU);
-    cout << "actual" << endl;
-    printCoords(u);
+    //cout << "expected" << endl;
+    //printCoords(exactU);
+    //cout << "actual" << endl;
+    //printCoords(u);
 
     //выводим ошибку
     double error = calcError();
